@@ -5,8 +5,10 @@ import socket
 import re
 from Alert import Alert as Alt
 import urllib
-import httplib2
 from urllib import request
+from urllib.parse import quote
+import httplib2
+from weather import WeatherInfo
 AlertObj = Alt()
 # For IP address
 ip_url = "http://www.ipip.net"
@@ -46,5 +48,15 @@ AlertObj.Info("Your Location         {} {} {}".format(content['data'][
     0], content['data'][1], content['data'][2]))
 AlertObj.Info("ISP                   {} {}".format(content['data'][0], content[
     'data'][3]))
+city = content['data'][2]
+# TODO: Find an accurate way to get position.
+url = "https://free-api.heweather.com/v5/weather?city=" + quote(
+    city) + "&key=3146bbe028a5454f8a0b2b7db0cf6a2d"
+
+content = request.urlopen(url).read()
+data = json.loads(content.decode())
+
+wobj = WeatherInfo(data)
+print(wobj.basic)
 
 os.system('pause')
