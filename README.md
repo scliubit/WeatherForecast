@@ -1,2 +1,2 @@
 # WeatherForecast
-A simple weather forecast
+A simple weather forecast under coding
