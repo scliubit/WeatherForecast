@@ -15,11 +15,11 @@ class WeatherInfo(object):
     def __init__(self, weather_dict):
         if __name__ == '__main__':
             AlertObj.Info("Constructing Weather Info Module")
-        try:
-            if weather_dict['HeWeather5'][0]['status'] == 'ok':
-                pass
-        except:
+        if weather_dict['HeWeather5'][0]['status'] == 'ok':
+            pass
+        else:
             AlertObj.Warn("Unable to get Weather Data!")
+            shutdown()
         WeatherData = weather_dict['HeWeather5']
         WeatherData = WeatherData[0]
         # print(WeatherData)
@@ -99,6 +99,13 @@ class WeatherInfo(object):
         AlertObj.Info("Finish analyzing weather data")
 
 
+def shutdown():
+    '''shut down'''
+    AlertObj.Info("Finish all in {} s".format(time.time() - runtime))
+    os.system('pause')
+    exit()
+
+
 # For IP address
 ip_url = "http://www.ipip.net"
 with request.urlopen(ip_url) as urlf:
@@ -109,14 +116,9 @@ with request.urlopen(ip_url) as urlf:
         AlertObj.Warn("Fail to get your IPv4 - Address")
 # For Local IP(Might not be used actually...)
 hostname = socket.gethostname()
-localIP = socket.gethostbyname(hostname)
 AlertObj.Info("Hello %s user." % hostname)
 AlertObj.Info("Your IPv4 Address:    {}".format(ipstring))
 now = time.time()
-with open("city.json", 'r') as f:
-    city = json.load(f)
-AlertObj.Info('Load cities in        {} s'.format(float(time.time() - now)))
-
 url = "https://www.ipip.net/ip.html"
 string = request.urlopen(url).read()
 xre = b'(<div style="text-align: center;color:red;font-size: 20px;font-weight: 600;">)(.+)(</div>)'
@@ -124,18 +126,45 @@ z = re.search(xre, string).group(2).decode()
 location = z.split(" ")
 city = location[-1]
 # finish
+key = ''  # TODO: Get a key for yourself!
+if key == '':
+    print("No available key.")
 url = "https://free-api.heweather.com/v5/weather?city=" + quote(
-    city) + "&key=3146bbe028a5454f8a0b2b7db0cf6a2d"
+    city) + "&key=" + key
 
 content = request.urlopen(url).read()
 data = json.loads(content.decode())
 
 wobj = WeatherInfo(data)
+if float(wobj.latitude) >= 0:
+    lat = 'N'
+else:
+    lat = 'S'
+if float(wobj.longitude) >= 0:
+    lon = 'E'
+else:
+    lon = 'W'
 AlertObj.Info("==============================")
 AlertObj.Info("Weather Forecast for {}".format(city))
+AlertObj.Info("latitude:      {}°{}\n\t         longitude:     {}°{}".format(
+    wobj.latitude, lat, wobj.longitude, lon))
 AlertObj.Info(
-    "Real Time Weather: \n\t         Condition: {}    Temperature: {}℃\n\t         Sendible Temperature: {}℃".
+    "Real Time Weather: \n\t\t Condition: {}    Temperature: {}℃\n\t\t Sendible Temperature: {}℃".
     format(wobj.now_cond, wobj.now_temperature, wobj.now_feel))
+AlertObj.Info("Update at {} (local)\n\t\t\t   {} (utc)".format(
+    wobj.updatetime_loc, wobj.updatetime_utc))
+try:
+    AlertObj.Info(
+        "Real time AQI: \n\t         Total AQI: {}    pm10: {}    pm2.5 {}\n\t         AirQuality: {}".
+        format(wobj.aqi, wobj.pm10, wobj.pm25, wobj.qlty))
+except:
+    try:
+        AlertObj.Info("lack some Air Quality data.")
+        AlertObj.Info(
+            "Real time AQI: \n\t         Total AQI: {}    pm10: {}    pm2.5: {}".
+            format(wobj.aqi, wobj.pm10, wobj.pm25))
+    except:
+        AlertObj.Warn("No avaiable Air Quality data.")
+
 AlertObj.Info("==============================")
-AlertObj.Info("Finish all in {} s".format(time.time() - runtime))
-os.system('pause')
+shutdown()
