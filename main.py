@@ -4,19 +4,17 @@ import os
 import socket
 import re
 from Alert import Alert as Alt
-import urllib
 from urllib import request
 from urllib.parse import quote
-import httplib2
 AlertObj = Alt()
+runtime = time.time()
 
 
 # analyze weather information
 class WeatherInfo(object):
     def __init__(self, weather_dict):
         if __name__ == '__main__':
-            AlertObj.Info("WeatherInfo constructing...")
-        AlertObj.Info("Constructing Weather Info Module")
+            AlertObj.Info("Constructing Weather Info Module")
         try:
             if weather_dict['HeWeather5'][0]['status'] == 'ok':
                 pass
@@ -98,6 +96,7 @@ class WeatherInfo(object):
         self.now_humidity = self.now['hum']  # percentage
         self.now_precipitation = self.now['pcpn']  # millimeter
         self.now_presure = float(self.now['pres']) / 10  # kPa
+        AlertObj.Info("Finish analyzing weather data")
 
 
 # For IP address
@@ -114,30 +113,10 @@ localIP = socket.gethostbyname(hostname)
 AlertObj.Info("Hello %s user." % hostname)
 AlertObj.Info("Your IPv4 Address:    {}".format(ipstring))
 now = time.time()
-AlertObj.Info('System time:          ' + str(now))
 with open("city.json", 'r') as f:
     city = json.load(f)
 AlertObj.Info('Load cities in        {} s'.format(float(time.time() - now)))
-now = time.time()
-AlertObj.Info("System time:          {}".format(now))
-# =====Finish reading in=====
-params = urllib.parse.urlencode({
-    'ip': ipstring,
-    'datatype': 'jsonp',
-    'callback': 'find'
-})
-url = 'http://api.ip138.com/query/?' + params
-# This token was bought by the writer.
-# Do not use is token frequently for there's a limit (about 1000 times).
-headers = {"token": "b00aec67a7e5e29de57e4d0c530ee044"}
-http = httplib2.Http()
-response, content = http.request(url, 'GET', headers=headers)
-content = eval(str(content, 'utf-8')[5:-1])
-AlertObj.Info("Your Location         {} {} {}".format(content['data'][
-    0], content['data'][1], content['data'][2]))
-AlertObj.Info("ISP                   {} {}".format(content['data'][0], content[
-    'data'][3]))
-# get an accurate location!!!(NEW)
+
 url = "https://www.ipip.net/ip.html"
 string = request.urlopen(url).read()
 xre = b'(<div style="text-align: center;color:red;font-size: 20px;font-weight: 600;">)(.+)(</div>)'
@@ -158,4 +137,5 @@ AlertObj.Info(
     "Real Time Weather: \n\t         Condition: {}    Temperature: {}℃\n\t         Sendible Temperature: {}℃".
     format(wobj.now_cond, wobj.now_temperature, wobj.now_feel))
 AlertObj.Info("==============================")
+AlertObj.Info("Finish all in {} s".format(time.time() - runtime))
 os.system('pause')
