@@ -6,3 +6,5 @@ A simple weather forecast under coding.
 2017-08-07: Able to get your inaccurate location and give you weather information. Information from:HeWeather.
 
 2017-08-07: Able to get your accurate location in China via ip-address and give you weather information. Info From: IPIP.NET & HeWeather.
+
+2017-08-07: Bug fixed. Function Added. Code optimized.
