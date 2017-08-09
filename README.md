@@ -14,3 +14,5 @@ Alert.py is used to output info.
 2017-08-07: Bug fixed. Function Added. Code optimized.
 
 2017-08-08: Bug fixed. Function Added. "Beautified".
+
+2017-08-09: Stop updating.
