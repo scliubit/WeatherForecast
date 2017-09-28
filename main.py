@@ -1,6 +1,7 @@
 import json
 import time
 import os
+import sys
 import socket
 import re
 from Alert import Alert as Alt
@@ -10,7 +11,7 @@ from urllib.parse import quote
 AlertObj = Alt()
 runtime = time.time()
 
-
+key = ''  # BUY A KEY BY YOURSELF
 # analyze weather information
 class WeatherInfo(object):
     def __init__(self, weather_dict):
@@ -29,6 +30,7 @@ class WeatherInfo(object):
         # daily_forecast
         self.daily = WeatherData['daily_forecast']
         # today
+        self.today_date = self.daily[0]['date']
         self.today_moonrise = self.daily[0]['astro']['mr']
         self.today_moonset = self.daily[0]['astro']['ms']
         self.today_sunrise = self.daily[0]['astro']['sr']
@@ -51,6 +53,7 @@ class WeatherInfo(object):
         self.today_wind_power = self.today_wind['sc']
         self.today_wind_windspeed = self.today_wind['spd']  # kmph
         # tomorrow
+        self.tomorrow_date = self.daily[1]['date']
         self.tomorrow_moonrise = self.daily[1]['astro']['mr']
         self.tomorrow_moonset = self.daily[1]['astro']['ms']
         self.tomorrow_sunrise = self.daily[1]['astro']['sr']
@@ -108,10 +111,11 @@ def shutdown():
     AlertObj.Info(
         "Finish all in {} s".format(time.time() - runtime),
         color=Alert.FOREGROUND_WHITE)
-    os.system('pause')
+    # os.system('pause')
     exit()
 
 
+argv = sys.argv
 # For IP address
 ip_url = "http://www.ipip.net"
 with request.urlopen(ip_url) as urlf:
@@ -120,20 +124,48 @@ with request.urlopen(ip_url) as urlf:
     ipstring = ip.decode()
     if ipstring == '':
         AlertObj.Warn("Fail to get your IPv4 - Address")
+# For Local IP(Might not be used actually...)
 hostname = socket.gethostname()
 AlertObj.Info("Hello %s user." % hostname, color=Alert.FOREGROUND_WHITE)
 AlertObj.Info("Your IPv4 Address:    {}".format(ipstring))
-
+# AlertObj.colorPrint(ipstring, color=Alert.FOREGROUND_GREEN, end_of_text='\n')
+# AlertObj.Info("{}".format(ipstring))
 now = time.time()
+# with open("city.json", 'r') as f:
+#     city = json.load(f)
+# AlertObj.Info('Load cities in        {} s'.format(float(time.time() - now)))
 
+# TODO:These codes may not be used for now......
+# =====Finish reading in=====
+# params = urllib.parse.urlencode({
+#     'ip': ipstring,
+#     'datatype': 'jsonp',
+#     'callback': 'find'
+# })
+# url = 'http://api.ip138.com/query/?' + params
+# This token was bought by the writer.
+# Do not use is token frequently for there's a limit (about 1000 times).
+# headers = {"token": ""}
+# http = httplib2.Http()
+# response, content = http.request(url, 'GET', headers=headers)
+# content = eval(str(content, 'utf-8')[5:-1])
+# AlertObj.Info("Your Location         {} {} {}".format(content['data'][
+#     0], content['data'][1], content['data'][2]))
+# AlertObj.Info("ISP                   {} {}".format(content['data'][0], content[
+#     'data'][3]))
+# get an accurate location!!!(NEW)
 url = "https://www.ipip.net/ip.html"
 string = request.urlopen(url).read()
 xre = b'(<div style="text-align: center;color:red;font-size: 20px;font-weight: 600;">)(.+)(</div>)'
 z = re.search(xre, string).group(2).decode()
 location = z.split(" ")
-city = location[-1]
+try:
+    with open('location', 'rb') as f:
+        city = f.read().decode()
+except:
+    city = location[-1]
 # finish
-key = ''  # BUY A KEY BY YOURSELF
+
 if key == '':
     print('No available key')
     exit()
@@ -144,7 +176,7 @@ content = request.urlopen(url).read()
 data = json.loads(content.decode())
 
 wobj = WeatherInfo(data)
-tmpColor = Alert.FOREGROUND_WHITE
+tempColor = Alert.FOREGROUND_WHITE
 if float(wobj.latitude) >= 0:
     lat = 'N'
 else:
@@ -161,6 +193,10 @@ AlertObj.Info(
     "latitude:      {}°{}\n\t\t longitude:     {}°{}".format(
         wobj.latitude, lat, wobj.longitude, lon),
     color=Alert.FOREGROUND_WHITE)
+AlertObj.Info(
+    "============================================================",
+    color=Alert.FOREGROUND_WHITE)
+
 if int(wobj.now_temperature) >= 33 or int(wobj.now_feel) >= 33:
     tempColor = Alert.FOREGROUND_RED
 elif 25 <= int(wobj.now_temperature) < 33 and 25 <= int(wobj.now_feel) < 33:
@@ -170,9 +206,18 @@ elif 16 < int(wobj.now_temperature) < 25 and 16 < int(wobj.now_feel) < 25:
 else:
     pass
 AlertObj.Info(
-    "Real Time Weather: \n\t\t Condition: {}    Temperature: {}℃\n\t\t Sendible Temperature: {}℃".
+    "Real Time Weather: \n\t\t Condition: {}    Temperature: {}℃\n\t\t Sendible Temperature: {}℃ ".
     format(wobj.now_cond, wobj.now_temperature, wobj.now_feel),
     color=tempColor)
+AlertObj.Info(
+    "Humidity: {}%  Precipitation :{}mm\n\t\t Pressure: {}kPa".format(
+        wobj.now_humidity, wobj.now_precipitation, wobj.now_presure))
+AlertObj.Info(
+    "============================================================",
+    color=Alert.FOREGROUND_WHITE)
+AlertObj.Info("Today: {}".format(wobj.today_date))
+AlertObj.Info("Condition in day:   {}\n\t\t Condition at night: {}".format(
+    wobj.today_cond_day, wobj.today_cond_night))
 if int(wobj.today_temperature_min) >= 33:
     tempColor = Alert.FOREGROUND_RED
 elif 25 <= int(wobj.today_temperature_min) < 33:
@@ -180,7 +225,7 @@ elif 25 <= int(wobj.today_temperature_min) < 33:
 elif 16 <= int(wobj.today_temperature_min) < 25:
     tempColor = Alert.FOREGROUND_GREEN
 else:
-    tempColor = Alert.FOREGROUND_BLUE
+    tempColor = Alert.FOREGROUND_SKYBLUE
 AlertObj.Info(
     "Minimum Temperature: {}".format(wobj.today_temperature_min),
     color=tempColor)
@@ -191,17 +236,16 @@ elif 25 <= int(wobj.today_temperature_max) < 33:
 elif 16 <= int(wobj.today_temperature_max) < 25:
     tempColor = Alert.FOREGROUND_GREEN
 else:
-    tempColor = Alert.FOREGROUND_BLUE
+    tempColor = Alert.FOREGROUND_SKYBLUE
 AlertObj.Info(
-    "Maximum Temperature: {}".format(wobj.today_temperature_max),
+    "Maximum Temperature: {}\n".format(wobj.today_temperature_max),
     color=tempColor)
 AlertObj.Info(
-    "Update at {} (local)\n\t\t\t   {} (utc)".format(wobj.updatetime_loc,
-                                                     wobj.updatetime_utc),
-    color=Alert.FOREGROUND_WHITE)
+    "Humidity: {}%  Precipitation :{}mm\n\t\t Pressure: {}kPa\n".format(
+        wobj.today_humidity, wobj.today_precipitation, wobj.today_presure))
 try:
     if int(wobj.aqi) <= 50:
-        tempColor = Alert.FOREGROUND_BLUE
+        tempColor = Alert.FOREGROUND_SKYBLUE
     elif 50 < int(wobj.aqi) <= 100:
         tempColor = Alert.FOREGROUND_GREEN
     elif 100 < int(wobj.aqi) <= 150:
@@ -214,7 +258,7 @@ except:
     pass
 try:
     AlertObj.Info(
-        "Real time AQI: \n\t\t Total AQI: {}    pm10: {}    pm2.5 {}\n\t\t AirQuality: {}".
+        "AQI: \n\t\t Total AQI: {}   pm10: {}   pm2.5 {}\n\t\t AirQuality: {}".
         format(wobj.aqi, wobj.pm10, wobj.pm25, wobj.qlty))
 except:
     try:
@@ -231,6 +275,41 @@ except:
 AlertObj.Info(
     "============================================================",
     color=Alert.FOREGROUND_WHITE)
+AlertObj.Info("Tomorrow: {}".format(wobj.tomorrow_date))
+AlertObj.Info("Condition in day:   {}\n\t\t Condition at night: {}".format(
+    wobj.tomorrow_cond_day, wobj.tomorrow_cond_night))
+if int(wobj.tomorrow_temperature_min) >= 33:
+    tempColor = Alert.FOREGROUND_RED
+elif 25 <= int(wobj.tomorrow_temperature_min) < 33:
+    tempColor = Alert.FOREGROUND_YELLOW
+elif 16 <= int(wobj.tomorrow_temperature_min) < 25:
+    tempColor = Alert.FOREGROUND_GREEN
+else:
+    tempColor = Alert.FOREGROUND_SKYBLUE
+AlertObj.Info(
+    "Minimum Temperature: {}".format(wobj.tomorrow_temperature_min),
+    color=tempColor)
+if int(wobj.tomorrow_temperature_max) >= 33:
+    tempColor = Alert.FOREGROUND_RED
+elif 25 <= int(wobj.tomorrow_temperature_max) < 33:
+    tempColor = Alert.FOREGROUND_YELLOW
+elif 16 <= int(wobj.tomorrow_temperature_max) < 25:
+    tempColor = Alert.FOREGROUND_GREEN
+else:
+    tempColor = Alert.FOREGROUND_SKYBLUE
+AlertObj.Info(
+    "Maximum Temperature: {}\n".format(wobj.tomorrow_temperature_max),
+    color=tempColor)
+AlertObj.Info("Humidity: {}%  Precipitation :{}mm\n\t\t Pressure: {}kPa\n".
+              format(wobj.tomorrow_humidity, wobj.tomorrow_precipitation,
+                     wobj.tomorrow_presure))
+AlertObj.Info(
+    "Update at {} (local)\n\t\t\t   {} (utc)".format(wobj.updatetime_loc,
+                                                     wobj.updatetime_utc),
+    color=Alert.FOREGROUND_WHITE)
+AlertObj.Info(
+    "============================================================",
+    color=Alert.FOREGROUND_WHITE)
 shutdown()
 AlertObj.Info("Finish all in {} s".format(time.time() - runtime))
-os.system('pause')
+# os.system('pause')
