@@ -12,6 +12,41 @@ import Alert
 AlertObj = Alt()
 t0 = time.time()
 
+def series_to_supervised(data, n_in=20 * 24, n_out=20 * 24, dropnan=True):
+    '''convert series to supervised learning data'''
+    if type(data) is list:
+        n_vars = 1
+        AlertObj.Info('transforming list type data.')
+    else:
+        n_vars = data.shape[1]
+        AlertObj.Info('transforming non-list type data. ', n_vars)
+    # n_vars = 1 if type(data) is list else data.shape[1]
+    df = DataFrame(data)
+    cols, names = list(), list()
+    # input sequence (t-n, ... t-1)
+    for i in range(n_in, 0, -1):  # reverse.
+        cols.append(df.shift(i))
+        names += [('var%d(t-%d)' % (j + 1, i)) for j in range(n_vars)]
+    # forecast sequence (t, t+1, ... t+n)
+    for i in range(0, n_out):
+        cols.append(df.shift(-i))
+        if i == 0:
+            names += [('var%d(t)' % (j + 1)) for j in range(n_vars)]
+        else:
+            names += [('var%d(t+%d)' % (j + 1, i)) for j in range(n_vars)]
+    # put it all together
+    res = concat(cols, axis=1)
+    res.columns = names
+    # drop rows with NaN values
+    if dropnan:
+        res.dropna(inplace=True)
+    return res
+
+
+def parse(x):
+    '''Just to get a time string. Boring function'''
+    return datetime.strptime(x, '%Y %m %d %H')
+
 
 def shutdown():
     '''shut down'''
@@ -344,6 +379,136 @@ AlertObj.Info(
 AlertObj.Info(
     "============================================================",
     color=Alert.FOREGROUND_WHITE)
+# Just a little part of weather data has been used.
+# The most important thing is the use of LSTM.
+AlertObj.Info('\t\tPreparing to have a weather prediction.')
+AlertObj.Info('\t\tDataset: Weather of 2017')
+AlertObj.Info('\t\tLSTM starts in 5 seconds')
+# time.sleep(5)
+from datetime import datetime
+from pandas import read_csv
+from pandas import DataFrame
+from pandas import concat
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MinMaxScaler
+from matplotlib import pyplot as plt
+from keras import optimizers
+from keras.models import load_model
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+# from sklearn.metrics import mean_squared_error
+import numpy as np
+from numpy import concatenate
+from math import sqrt
+AlertObj.Info('processing data')
+dataset = read_csv('res.csv',  parse_dates=[
+                   ['year', 'month', 'day', 'hour']], index_col=0, date_parser=parse)
+dataset.drop('No', axis=1, inplace=True)
+dataset.columns = ['AQI', 'dew', 'temperature',
+                   'pressure', 'wind_direction', 'wind_speed', 'snow', 'rain']
+dataset.index.name = 'date'
+dataset['AQI'].fillna(0, inplace=True)
+dataset = dataset[24:]
+dataset.to_csv('weatherData.csv')
+'''Actually i dont know why it turns even bigger when it is saved...'''
+
+dataset = read_csv('weatherData.csv', header=0, index_col=0)
+values = dataset.values
+encoder = LabelEncoder()
+values[:, 4] = encoder.fit_transform(values[:, 4])
+values = values.astype('float32')
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaledData = scaler.fit_transform(values)
+reframedData = series_to_supervised(scaledData, 1, 1)
+AlertObj.Info('{}. this is for the temparature.'.format(
+    reframedData.columns[9]))
+# drop data that wont be used.
+reframedData.drop(
+    reframedData.columns[[8, 10, 11, 12, 13, 14, 15]], axis=1, inplace=True)
+
+groups = [0, 1, 2, 3, 5, 6, 7]
+i = 1
+plt.figure()
+for group in groups:
+    plt.subplot(len(groups), 1, i)
+    plt.plot(values[:, group])
+    plt.title(dataset.columns[group], loc='right')
+    i += 1
+plt.show()
+values = reframedData.values
+n_train_hours = 365 * 24
+# from the beginning to 365*24=8760(1 year)
+train = values[:n_train_hours, :]
+# 4 years
+test = values[n_train_hours:, :]
+# All but last ,last
+train_X, train_y = train[:, :-1], train[:, -1]
+validation_X, validation_y = test[:, :-1], test[:, -1]
+# reshape.
+train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
+validation_X = validation_X.reshape(
+    (validation_X.shape[0], 1, validation_X.shape[1]))
+# design network
+epochs = 100
+batch_size = 72
+if os.path.isfile('model_{}.h5'.format(epochs)):
+    model = load_model('model_{}.h5'.format(epochs))
+else:
+    model = Sequential()
+    model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
+    model.add(Dense(1))
+    adam = optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+    model.compile(loss='mse', optimizer=adam)
+    # fit network
+    history = model.fit(train_X, train_y, epochs=epochs, batch_size=batch_size,
+                        validation_data=(validation_X, validation_y), verbose=2, shuffle=False)
+    model.save('model_{}.h5'.format(epochs))
+    plt.plot(history.history['loss'], label='train')
+    plt.plot(history.history['val_loss'], label='test')
+    plt.legend()
+    plt.title('loss')
+    plt.show()
+
+
+# plot loss
+# filename = 'Model_{}_{}_{}.h5'.format(time.strftime(
+#     '%Y%m%d-%H%M%S', time.localtime()), epochs, batch_size)
+# model.save(filename)
+'''
+plt.plot(history.history['loss'], label='train')
+plt.plot(history.history['val_loss'], label='test')
+plt.legend()
+plt.title('loss')
+plt.show()
+'''
+# make a prediction
+yhat = model.predict(validation_X)
+# print(yhat)
+# print(scaler.inverse_transform(yhat))
+validation_X = validation_X.reshape(
+    (validation_X.shape[0], validation_X.shape[2]))
+# invert scaling for forecast
+inv_yhat = concatenate((yhat, validation_X[:, 1:]), axis=1)
+inv_yhat = scaler.inverse_transform(inv_yhat)
+inv_yhat = inv_yhat[:, 1]
+plt.plot(inv_yhat)
+# invert scaling for actual
+validation_y = validation_y.reshape((len(validation_y), 1))
+inv_y = concatenate((validation_y, validation_X[:, 1:]), axis=1)
+inv_y = scaler.inverse_transform(inv_y)
+inv_y = inv_y[:, 1]
+# plt.plot(inv_y)
+plt.show()
+AlertObj.Info('Predicted temperature:{}'.format(inv_y[-1]))
+# print(inv_y)
+# calculate RMSE
+# rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
+# AlertObj.Info('Test RMSE: %.9f' % rmse)
+
+shutdown()
+
+
 shutdown()
 # AlertObj.Info("Finish all in {} s".format(time.time() - t0))
 # os.system('pause')
