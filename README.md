@@ -20,3 +20,5 @@ Alert.py is used to output info.
 2017-9-28: Update again for a better user interface.
 
 2017-11-21: It's been a little more accurate. Able to get my location now. Thanks alot to ipip.net!
+
+2018-2-4: Add LSTM.
