@@ -21,4 +21,4 @@ Alert.py is used to output info.
 
 2017-11-21: It's been a little more accurate. Able to get my location now. Thanks alot to ipip.net!
 
-2018-2-4: Add LSTM.
+2018-2-4: Add LSTM. Dataset and part of source code from https://github.com/purna15111/weather_forecasting
